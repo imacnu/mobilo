@@ -1,0 +1,430 @@
+.login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-background);
+}
+
+.loginBox {
+  background: var(--color-surface);
+  padding: 48px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+  width: 100%;
+  max-width: 400px;
+}
+
+.loginBox h1 {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.loginBox p {
+  color: var(--color-secondary);
+  margin-bottom: 32px;
+}
+
+.loginBox form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loginBox .btn {
+  width: 100%;
+}
+
+.admin {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.header h1 {
+  font-size: 32px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 32px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  color: var(--color-secondary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  transition: var(--transition);
+}
+
+.tab:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.tab.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.badge {
+  background: var(--color-accent);
+  color: white;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.section {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.sectionHeader h2 {
+  font-size: 24px;
+}
+
+.form {
+  background: var(--color-background);
+  padding: 24px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 24px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.form textarea {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.formActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.loading, .empty {
+  text-align: center;
+  padding: 48px;
+  color: var(--color-secondary);
+}
+
+.table {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.tableHeader {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--color-background);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-secondary);
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 16px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-border);
+  align-items: center;
+}
+
+.productCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.productCell img {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.productCell span {
+  font-weight: 500;
+}
+
+.status {
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.available {
+  background: #d4edda;
+  color: #155724;
+}
+
+.unavailable {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.ordersList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.orderCard {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+}
+
+.orderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.orderId {
+  font-family: monospace;
+  font-weight: 600;
+  margin-right: 12px;
+}
+
+.orderDate {
+  font-size: 14px;
+  color: var(--color-secondary);
+}
+
+.orderStatus {
+  font-size: 13px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.orderStatus.pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.orderStatus.confirmed {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.orderStatus.shipped {
+  background: #d4edda;
+  color: #155724;
+}
+
+.orderStatus.delivered {
+  background: #d4edda;
+  color: #155724;
+}
+
+.orderCustomer {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orderCustomer span {
+  font-size: 14px;
+  color: var(--color-secondary);
+}
+
+.orderItems {
+  margin-bottom: 16px;
+}
+
+.orderItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 15px;
+}
+
+.orderTotal {
+  background: var(--color-background);
+  padding: 16px;
+  border-radius: var(--radius-sm);
+}
+
+.totalsRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.orderActions {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--color-primary);
+  color: white;
+  transition: var(--transition);
+}
+
+.actionBtn:hover {
+  background: var(--color-secondary);
+}
+
+.imageUploadSection {
+  margin-bottom: 16px;
+}
+
+.imageUploadSection label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: var(--color-primary);
+}
+
+.imageUploadBox {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 24px;
+  text-align: center;
+  transition: var(--transition);
+}
+
+.imageUploadBox:hover {
+  border-color: var(--color-accent);
+}
+
+.fileInput {
+  display: none;
+}
+
+.uploadBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-secondary);
+  width: 100%;
+}
+
+.uploadBtn:hover {
+  color: var(--color-accent);
+}
+
+.imagePreviewGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.imagePreview {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.imagePreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.removeImageBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-error);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.imagePreview:hover .removeImageBtn {
+  opacity: 1;
+}
+
+.deleteBtn {
+  padding: 8px;
+  color: var(--color-error);
+  transition: var(--transition);
+}
+
+.deleteBtn:hover {
+  background: #fee;
+}
+
+.completedLabel {
+  color: var(--color-success);
+  font-weight: 500;
+  padding: 8px 0;
+}
+
+@media (max-width: 768px) {
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tableHeader,
+  .tableRow {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .tableHeader span:not(:first-child) {
+    display: none;
+  }
+}

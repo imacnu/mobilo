@@ -1,66 +1,156 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { supabase, Product } from '@/lib/supabase';
+import { demoProducts } from '@/lib/demoData';
+import ProductCard from '@/components/ProductCard';
+import styles from './page.module.css';
+
+const CATEGORIES = [
+  { id: 'all', label: 'Todo' },
+  { id: 'muebles', label: 'Muebles' },
+  { id: 'decoracion', label: 'Decoración' },
+  { id: 'iluminacion', label: 'Iluminación' },
+  { id: 'textil', label: 'Textil' },
+  { id: 'cocina', label: 'Cocina' },
+  { id: 'electronica', label: 'Electrónica' },
+];
+
+const USE_DEMO_DATA = false;
 
 export default function Home() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [category, setCategory] = useState('all');
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [category, search]);
+
+  const fetchProducts = async () => {
+    setLoading(true);
+    
+    if (USE_DEMO_DATA) {
+      let filtered = [...demoProducts];
+      
+      if (category !== 'all') {
+        filtered = filtered.filter(p => p.category === category);
+      }
+      
+      if (search) {
+        filtered = filtered.filter(p => 
+          p.name.toLowerCase().includes(search.toLowerCase())
+        );
+      }
+      
+      setProducts(filtered);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      let query = supabase
+        .from('products')
+        .select('*')
+        .eq('available', true)
+        .order('created_at', { ascending: false });
+
+      if (category !== 'all') {
+        query = query.eq('category', category);
+      }
+
+      if (search) {
+        query = query.ilike('name', `%${search}%`);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching products:', error);
+        setProducts(demoProducts);
+      } else {
+        setProducts(data || demoProducts);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setProducts(demoProducts);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+      <section className={styles.hero}>
+        <div className={styles.heroContent}>
+          <h1>Muebles y decoración<br />Maria Amor 11B</h1>
+          <p>Amplia selección de muebles, electrónica y decoración a la venta, si compras más de 10 productos, recibirás un 10% de descuento.</p>
         </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+        <div className={styles.heroImage}>
+          <img 
+            src="https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=1200" 
+            alt="Interior moderno"
+          />
+        </div>
+      </section>
+
+      <section className={styles.catalog} id="categories">
+        <div className={styles.filters}>
+          <div className={styles.categories}>
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat.id}
+                className={`${styles.catBtn} ${category === cat.id ? styles.active : ''}`}
+                onClick={() => setCategory(cat.id)}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+          <div className={styles.search}>
+            <input
+              type="text"
+              placeholder="Buscar productos..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
             />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          </div>
         </div>
-      </main>
+
+        {loading ? (
+          <div className={styles.loading}>
+            <div className={styles.spinner} />
+            <p>Cargando productos...</p>
+          </div>
+        ) : products.length === 0 ? (
+          <div className={styles.empty}>
+            <p>No se encontraron productos</p>
+          </div>
+        ) : (
+          <div className={styles.grid}>
+            {products.map(product => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <footer className={styles.footer}>
+        <div className={styles.footerContent}>
+          <div>
+            <h3>Maria Amor 11B</h3>
+            <p>Muebles, electrónica y decoración</p>
+          </div>
+          <div>
+            <h4>Contacto</h4>
+            <p>Email: contacto@malco.es</p>
+          </div>
+        </div>
+        <div className={styles.copyright}>
+          <p>© 2026 Maria Amor 11B. Todos los derechos reservados.</p>
+        </div>
+      </footer>
     </div>
   );
 }

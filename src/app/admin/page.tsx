@@ -116,13 +116,37 @@ export default function AdminPage() {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    const newFiles = Array.from(files);
-    const newUrls = newFiles.map((file) => URL.createObjectURL(file));
+
+    const MAX_BYTES = 8 * 1024 * 1024;
+    const accepted: File[] = [];
+    const rejected: string[] = [];
+
+    for (const file of Array.from(files)) {
+      if (file.size > MAX_BYTES) {
+        rejected.push(`${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB)`);
+      } else {
+        accepted.push(file);
+      }
+    }
+
+    if (rejected.length > 0) {
+      alert(
+        `Estas imágenes superan el límite de 8 MB y no se han añadido:\n${rejected.join('\n')}`
+      );
+    }
+
+    if (accepted.length === 0) {
+      e.target.value = '';
+      return;
+    }
+
+    const newUrls = accepted.map((file) => URL.createObjectURL(file));
     setNewProduct((prev) => ({
       ...prev,
-      imageFiles: [...prev.imageFiles, ...newFiles],
+      imageFiles: [...prev.imageFiles, ...accepted],
       imageUrls: [...prev.imageUrls, ...newUrls],
     }));
+    e.target.value = '';
   };
 
   const removeImage = (index: number) => {
@@ -160,9 +184,11 @@ export default function AdminPage() {
         const formData = new FormData();
         formData.append('file', file);
         const result = await uploadProductImage(formData);
-        if (result.success) {
-          uploadedUrls.push(result.url);
+        if (!result.success) {
+          alert(`Error al subir "${file.name}": ${result.error}`);
+          return;
         }
+        uploadedUrls.push(result.url);
       }
 
       const existingUrls = newProduct.imageUrls.filter(
@@ -208,7 +234,13 @@ export default function AdminPage() {
       alert(wasEditing ? 'Producto actualizado correctamente' : 'Producto añadido correctamente');
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('Error al guardar producto');
+      const message =
+        error instanceof Error ? error.message : 'Error al guardar producto';
+      alert(
+        message.includes('Body exceeded') || message.includes('too large')
+          ? 'La imagen es demasiado grande. Usa una de menos de 8 MB.'
+          : message || 'Error al guardar producto'
+      );
     } finally {
       setIsUploading(false);
     }

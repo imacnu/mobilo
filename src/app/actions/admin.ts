@@ -55,7 +55,7 @@ export async function saveProduct(
   const supabase = createServiceClient();
   const productData = {
     ...product,
-    available: true,
+    available: product.stock > 0,
   };
 
   const { error } = editingId
@@ -126,23 +126,59 @@ export async function updateProductStock(
   return { success: true };
 }
 
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB (under the 10MB Server Action limit)
+const ALLOWED_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+]);
+
 export async function uploadProductImage(
   formData: FormData
 ): Promise<{ success: true; url: string } | { success: false; error: string }> {
-  await requireAdmin();
+  try {
+    await requireAdmin();
 
-  const file = formData.get('file') as File | null;
-  if (!file) return { success: false, error: 'No se recibió ningún archivo' };
+    const file = formData.get('file') as File | null;
+    if (!file) return { success: false, error: 'No se recibió ningún archivo' };
 
-  const supabase = createServiceClient();
-  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${file.name}`;
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+      return {
+        success: false,
+        error: 'Formato no válido. Usa JPG, PNG, WEBP o GIF.',
+      };
+    }
 
-  const { error } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .upload(fileName, file);
+    if (file.size > MAX_IMAGE_BYTES) {
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      return {
+        success: false,
+        error: `La imagen pesa ${sizeMb} MB. El máximo permitido es 8 MB.`,
+      };
+    }
 
-  if (error) return { success: false, error: error.message };
+    const supabase = createServiceClient();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}-${safeName}`;
 
-  const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fileName);
-  return { success: true, url: data.publicUrl };
+    const { error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(fileName, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (error) return { success: false, error: error.message };
+
+    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(fileName);
+    return { success: true, url: data.publicUrl };
+  } catch (err) {
+    console.error('uploadProductImage error:', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Error al subir la imagen',
+    };
+  }
 }

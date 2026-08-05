@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Product, CartItem } from '@/lib/supabase';
+import type { Product, CartItem } from '@/lib/types';
 
 type CartContextType = {
   items: CartItem[];
@@ -29,31 +29,50 @@ export function useCart() {
 
 const DISCOUNT_THRESHOLD = 10;
 const DISCOUNT_RATE = 0.10;
+const CART_KEY = 'mobilo-cart';
+
+function loadCartFromStorage(): CartItem[] {
+  if (typeof window === 'undefined') return [];
+  const saved = localStorage.getItem(CART_KEY);
+  if (!saved) return [];
+  try {
+    return JSON.parse(saved);
+  } catch {
+    return [];
+  }
+}
+
+function getMaxStock(product: Product) {
+  return product.stock ?? 999;
+}
 
 export default function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [ready, setReady] = useState(false);
 
+  // Hydrate cart from localStorage after mount (avoids SSR mismatch)
   useEffect(() => {
-    const saved = localStorage.getItem('mobilo-cart');
-    if (saved) {
-      try {
-        setItems(JSON.parse(saved));
-      } catch (e) {
-        console.error('Error parsing cart', e);
-      }
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional hydration from localStorage
+    setItems(loadCartFromStorage());
+    setReady(true);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('mobilo-cart', JSON.stringify(items));
-  }, [items]);
+    if (ready) {
+      localStorage.setItem(CART_KEY, JSON.stringify(items));
+    }
+  }, [items, ready]);
 
   const addItem = (product: Product) => {
-    setItems(prev => {
-      const existing = prev.find(item => item.product.id === product.id);
+    const maxStock = getMaxStock(product);
+    if (maxStock <= 0) return;
+
+    setItems((prev) => {
+      const existing = prev.find((item) => item.product.id === product.id);
       if (existing) {
-        return prev.map(item =>
+        if (existing.quantity >= maxStock) return prev;
+        return prev.map((item) =>
           item.product.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
@@ -65,7 +84,7 @@ export default function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const removeItem = (productId: string) => {
-    setItems(prev => prev.filter(item => item.product.id !== productId));
+    setItems((prev) => prev.filter((item) => item.product.id !== productId));
   };
 
   const updateQuantity = (productId: string, quantity: number) => {
@@ -73,21 +92,22 @@ export default function CartProvider({ children }: { children: ReactNode }) {
       removeItem(productId);
       return;
     }
-    setItems(prev =>
-      prev.map(item =>
-        item.product.id === productId
-          ? { ...item, quantity }
-          : item
-      )
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.product.id !== productId) return item;
+        const maxStock = getMaxStock(item.product);
+        return { ...item, quantity: Math.min(quantity, maxStock) };
+      })
     );
   };
 
-  const clearCart = () => {
-    setItems([]);
-  };
+  const clearCart = () => setItems([]);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const subtotal = items.reduce(
+    (sum, item) => sum + item.product.price * item.quantity,
+    0
+  );
   const discount = totalItems >= DISCOUNT_THRESHOLD ? subtotal * DISCOUNT_RATE : 0;
   const total = subtotal - discount;
 

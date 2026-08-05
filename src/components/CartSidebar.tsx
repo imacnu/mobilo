@@ -2,74 +2,58 @@
 
 import { X, Plus, Minus, Trash2, ShoppingBag } from 'lucide-react';
 import { useCart } from './CartProvider';
+import ProductImage from '@/components/ProductImage';
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { checkout } from '@/app/actions/checkout';
 import styles from './CartSidebar.module.css';
 
 export default function CartSidebar() {
-  const { 
-    items, 
-    removeItem, 
-    updateQuantity, 
+  const {
+    items,
+    removeItem,
+    updateQuantity,
     clearCart,
-    subtotal, 
-    discount, 
+    subtotal,
+    discount,
     total,
-    isCartOpen, 
-    setIsCartOpen 
+    isCartOpen,
+    setIsCartOpen,
   } = useCart();
 
   const [checkoutData, setCheckoutData] = useState({
     name: '',
     email: '',
-    phone: ''
+    phone: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
+  const [emailWarning, setEmailWarning] = useState<string | undefined>(undefined);
 
   const handleCheckout = async () => {
     if (!checkoutData.name || !checkoutData.email) return;
-    
+
     setIsSubmitting(true);
-    
-    try {
-      const orderItems = items.map(item => ({
+    setCheckoutError('');
+
+    const result = await checkout(
+      checkoutData.name,
+      checkoutData.email,
+      checkoutData.phone,
+      items.map((item) => ({
         product_id: item.product.id,
         quantity: item.quantity,
-        price: item.product.price,
-        name: item.product.name
-      }));
+      }))
+    );
 
-      const { error } = await supabase.from('orders').insert({
-        customer_name: checkoutData.name,
-        customer_email: checkoutData.email,
-        customer_phone: checkoutData.phone,
-        items: orderItems,
-        subtotal: subtotal,
-        discount: discount,
-        total: total,
-        status: 'pending'
-      });
+    setIsSubmitting(false);
 
-      if (error) throw error;
-
+    if (result.success) {
       setOrderSuccess(true);
+      setEmailWarning(result.emailError);
       clearCart();
-      
-      console.log('=== NUEVO PEDIDO RECIBIDO ===');
-      console.log('Cliente:', checkoutData.name);
-      console.log('Email:', checkoutData.email);
-      console.log('Teléfono:', checkoutData.phone || 'No proporcionado');
-      console.log('Artículos:', orderItems);
-      console.log('Subtotal:', subtotal.toFixed(2), '€');
-      console.log('Descuento:', discount.toFixed(2), '€');
-      console.log('TOTAL:', total.toFixed(2), '€');
-      console.log('================================');
-
-    } catch (error) {
-      console.error('Error al procesar pedido:', error);
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      setCheckoutError(result.error);
     }
   };
 
@@ -78,6 +62,8 @@ export default function CartSidebar() {
     if (orderSuccess) {
       setOrderSuccess(false);
       setCheckoutData({ name: '', email: '', phone: '' });
+      setCheckoutError('');
+      setEmailWarning(undefined);
     }
   };
 
@@ -89,7 +75,7 @@ export default function CartSidebar() {
       <aside className={styles.sidebar}>
         <div className={styles.header}>
           <h2>Tu Carrito</h2>
-          <button onClick={closeSidebar} className={styles.closeBtn}>
+          <button onClick={closeSidebar} className={styles.closeBtn} aria-label="Cerrar carrito">
             <X size={24} />
           </button>
         </div>
@@ -100,7 +86,13 @@ export default function CartSidebar() {
               <ShoppingBag size={48} />
             </div>
             <h3>¡Pedido realizado!</h3>
-            <p>Gracias por tu compra. Te enviaremos un email de confirmación.</p>
+            {emailWarning ? (
+              <p>
+                Gracias por tu compra. El pedido se ha creado, pero no se pudo enviar el email de confirmación.
+              </p>
+            ) : (
+              <p>Gracias por tu compra. Te hemos enviado un email de confirmación.</p>
+            )}
             <button className="btn btn-primary" onClick={closeSidebar}>
               Seguir comprando
             </button>
@@ -113,38 +105,52 @@ export default function CartSidebar() {
         ) : (
           <>
             <div className={styles.items}>
-              {items.map(({ product, quantity }) => (
-                <div key={product.id} className={styles.item}>
-                  <div className={styles.itemImage}>
-                    <img src={product.image_url} alt={product.name} />
-                  </div>
-                  <div className={styles.itemInfo}>
-                    <h4>{product.name}</h4>
-                    <p className={styles.price}>{(product.price * quantity).toFixed(2)} €</p>
-                    <div className={styles.quantity}>
-                      <button 
-                        onClick={() => updateQuantity(product.id, quantity - 1)}
-                        className={styles.qtyBtn}
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <span>{quantity}</span>
-                      <button 
-                        onClick={() => updateQuantity(product.id, quantity + 1)}
-                        className={styles.qtyBtn}
-                      >
-                        <Plus size={16} />
-                      </button>
+              {items.map(({ product, quantity }) => {
+                const maxStock = product.stock ?? 999;
+                return (
+                  <div key={product.id} className={styles.item}>
+                    <div className={styles.itemImage}>
+                      <ProductImage
+                        src={product.image_url}
+                        alt={product.name}
+                        fill
+                        sizes="64px"
+                      />
                     </div>
+                    <div className={styles.itemInfo}>
+                      <h4>{product.name}</h4>
+                      <p className={styles.price}>
+                        {(product.price * quantity).toFixed(2)} €
+                      </p>
+                      <div className={styles.quantity}>
+                        <button
+                          onClick={() => updateQuantity(product.id, quantity - 1)}
+                          className={styles.qtyBtn}
+                          aria-label="Reducir cantidad"
+                        >
+                          <Minus size={16} />
+                        </button>
+                        <span>{quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(product.id, quantity + 1)}
+                          className={styles.qtyBtn}
+                          disabled={quantity >= maxStock}
+                          aria-label="Aumentar cantidad"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removeItem(product.id)}
+                      className={styles.removeBtn}
+                      aria-label="Eliminar producto"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => removeItem(product.id)}
-                    className={styles.removeBtn}
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className={styles.summary}>
@@ -171,29 +177,40 @@ export default function CartSidebar() {
 
             <div className={styles.checkout}>
               <h3>Finalizar pedido</h3>
+              {checkoutError && (
+                <p className={styles.checkoutError} role="alert">
+                  {checkoutError}
+                </p>
+              )}
               <div className={styles.formGroup}>
                 <input
                   type="text"
                   placeholder="Nombre completo *"
                   value={checkoutData.name}
-                  onChange={(e) => setCheckoutData({...checkoutData, name: e.target.value})}
+                  onChange={(e) =>
+                    setCheckoutData({ ...checkoutData, name: e.target.value })
+                  }
                   required
                 />
                 <input
                   type="email"
                   placeholder="Email *"
                   value={checkoutData.email}
-                  onChange={(e) => setCheckoutData({...checkoutData, email: e.target.value})}
+                  onChange={(e) =>
+                    setCheckoutData({ ...checkoutData, email: e.target.value })
+                  }
                   required
                 />
                 <input
                   type="tel"
                   placeholder="Teléfono (opcional)"
                   value={checkoutData.phone}
-                  onChange={(e) => setCheckoutData({...checkoutData, phone: e.target.value})}
+                  onChange={(e) =>
+                    setCheckoutData({ ...checkoutData, phone: e.target.value })
+                  }
                 />
               </div>
-              <button 
+              <button
                 className="btn btn-primary"
                 onClick={handleCheckout}
                 disabled={isSubmitting || !checkoutData.name || !checkoutData.email}

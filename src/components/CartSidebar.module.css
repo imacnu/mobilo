@@ -98,6 +98,7 @@
 }
 
 .itemImage {
+  position: relative;
   width: 80px;
   height: 80px;
   border-radius: var(--radius-sm);
@@ -227,6 +228,15 @@
 .checkout .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.checkoutError {
+  color: var(--color-error);
+  font-size: 14px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: rgba(214, 48, 49, 0.08);
+  border-radius: var(--radius-sm);
 }
 
 @media (max-width: 640px) {

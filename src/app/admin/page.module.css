@@ -36,6 +36,12 @@
   width: 100%;
 }
 
+.loginError {
+  color: var(--color-error);
+  font-size: 14px;
+  margin: 0;
+}
+
 .admin {
   max-width: 1200px;
   margin: 0 auto;
@@ -112,20 +118,96 @@
 .form {
   background: var(--color-background);
   padding: 24px;
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.formTitle {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+.stockCell {
+  display: flex;
+  align-items: center;
+}
+
+.stockInput {
+  width: 72px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  text-align: center;
+}
+
+.stockInput:focus {
+  outline: none;
+  border-color: var(--color-accent);
 }
 
 .formGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
-  margin-bottom: 16px;
+}
+
+.formGrid input,
+.formGrid select {
+  padding: 14px 16px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  transition: var(--transition);
+}
+
+.formGrid input:focus,
+.formGrid select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.characteristicsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.characteristicsGrid input {
+  padding: 14px 16px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  transition: var(--transition);
+}
+
+.characteristicsGrid input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.characteristicsGrid .fullWidth {
+  grid-column: 1 / -1;
 }
 
 .form textarea {
   width: 100%;
-  margin-bottom: 16px;
 }
 
 .formActions {
@@ -147,23 +229,43 @@
 }
 
 .tableHeader {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 16px;
-  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
   background: var(--color-background);
   font-weight: 600;
   font-size: 14px;
   color: var(--color-secondary);
 }
 
+.tableHeader > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.tableHeader > *:first-child {
+  flex: 2;
+}
+
+.tableHeader > *:last-child {
+  flex: 0 0 80px;
+  text-align: right;
+}
+
 .tableRow {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 16px;
-  padding: 16px 20px;
-  border-top: 1px solid var(--color-border);
+  display: flex;
   align-items: center;
+  padding: 12px 20px;
+  border-top: 1px solid var(--color-border);
+}
+
+.tableRow > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.tableRow > *:first-child {
+  flex: 2;
 }
 
 .productCell {
@@ -317,7 +419,6 @@
 }
 
 .imageUploadSection {
-  margin-bottom: 16px;
 }
 
 .imageUploadSection label {
@@ -397,14 +498,36 @@
   opacity: 1;
 }
 
+.actionsCell {
+  flex: 0 0 80px !important;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.editBtn,
 .deleteBtn {
-  padding: 8px;
-  color: var(--color-error);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
   transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-secondary);
+  background: transparent;
+}
+
+.editBtn:hover {
+  background: var(--color-primary);
+  color: white;
 }
 
 .deleteBtn:hover {
-  background: #fee;
+  background: var(--color-error);
+  color: white;
 }
 
 .completedLabel {
@@ -418,13 +541,14 @@
     grid-template-columns: 1fr;
   }
 
-  .tableHeader,
-  .tableRow {
-    grid-template-columns: 1fr;
-    gap: 8px;
+  .tableHeader > *:nth-child(2),
+  .tableHeader > *:nth-child(3),
+  .tableRow > *:nth-child(2),
+  .tableRow > *:nth-child(3) {
+    display: none;
   }
 
-  .tableHeader span:not(:first-child) {
-    display: none;
+  .tableHeader > *:last-child {
+    flex: 0 0 80px;
   }
 }

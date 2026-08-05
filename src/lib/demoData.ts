@@ -1,4 +1,4 @@
-import { Product } from '@/lib/supabase';
+import type { Product } from '@/lib/types';
 
 export const demoProducts: Product[] = [
   {

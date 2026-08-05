@@ -24,6 +24,10 @@
   transition: transform 0.4s ease;
 }
 
+.mainImg {
+  cursor: zoom-in;
+}
+
 .card:hover .image img {
   transform: scale(1.05);
 }
@@ -97,6 +101,14 @@
   color: var(--color-primary);
 }
 
+.stock {
+  font-size: 13px;
+  color: var(--color-secondary);
+  background: var(--color-background);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
 .navBtn {
   position: absolute;
   top: 50%;
@@ -152,4 +164,98 @@
 .dotActive {
   background: white;
   transform: scale(1.2);
+}
+
+/* Lightbox */
+.lightboxOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.lightboxContent {
+  max-width: 90vw;
+  max-height: 88vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightboxContent img,
+.lightboxImg {
+  max-width: 90vw;
+  max-height: 88vh;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+  animation: zoomIn 0.2s ease;
+}
+
+@keyframes zoomIn {
+  from { transform: scale(0.94); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.lightboxClose {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  z-index: 1001;
+}
+
+.lightboxClose:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.lightboxNav {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  z-index: 1001;
+}
+
+.lightboxNav:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.lightboxPrev { left: 20px; }
+.lightboxNext { right: 20px; }
+
+.lightboxDots {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 1001;
 }

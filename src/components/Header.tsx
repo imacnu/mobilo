@@ -18,7 +18,6 @@ export default function Header() {
           <nav className={`${styles.nav} ${mobileMenuOpen ? styles.navOpen : ''}`}>
             <Link href="/" className={styles.navLink}>Catálogo</Link>
             <Link href="/#categories" className={styles.navLink}>Categorías</Link>
-            <Link href="/admin" className={styles.navLink}>Admin</Link>
             <button 
               className={styles.navClose}
               onClick={() => setMobileMenuOpen(false)}

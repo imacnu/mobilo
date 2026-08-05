@@ -1,111 +1,143 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Package, ShoppingBag, Plus, Trash2, ImagePlus } from 'lucide-react';
-import { supabase, Product, Order, uploadImage } from '@/lib/supabase';
+import { Package, ShoppingBag, Plus, Trash2, ImagePlus, Pencil } from 'lucide-react';
+import { loginAdmin, logoutAdmin, checkAdminAuth } from '@/app/actions/auth';
+import {
+  getAdminProducts,
+  getAdminOrders,
+  saveProduct,
+  deleteProduct,
+  updateOrderStatus,
+  updateProductStock,
+  uploadProductImage,
+} from '@/app/actions/admin';
+import { PRODUCT_CATEGORIES } from '@/lib/categories';
+import ProductImage from '@/components/ProductImage';
+import type { Product, Order } from '@/lib/types';
 import styles from './page.module.css';
 
-const ADMIN_PASSWORD = 'mobilo2024';
+const EMPTY_PRODUCT = {
+  name: '',
+  description: '',
+  price: '',
+  category: 'muebles',
+  stock: '1',
+  imageFiles: [] as File[],
+  imageUrls: [] as string[],
+  charMaterial: '',
+  charColor: '',
+  charDimensions: '',
+  charWeight: '',
+  charOther: '',
+};
 
 export default function AdminPage() {
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState<'products' | 'orders'>('orders');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [newProduct, setNewProduct] = useState(EMPTY_PRODUCT);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [newProduct, setNewProduct] = useState({
-    name: '',
-    description: '',
-    price: '',
-    category: 'muebles',
-    imageFiles: [] as File[],
-    imageUrls: [] as string[],
-    characteristics: ''
-  });
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadData();
-    }
-  }, [isAuthenticated, activeTab]);
-
-  const loadData = () => {
+  const loadProducts = useCallback(async () => {
     setLoading(true);
-    if (activeTab === 'products') {
-      loadProducts();
-    } else {
-      loadOrders();
-    }
-  };
-
-  const loadProducts = async () => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setProducts(data || []);
+      const data = await getAdminProducts();
+      setProducts(data);
     } catch (error) {
       console.error('Error loading products:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
+    setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setOrders(data || []);
+      const data = await getAdminOrders();
+      setOrders(data);
     } catch (error) {
       console.error('Error loading orders:', error);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    checkAdminAuth().then((auth) => {
+      setIsAuthenticated(auth);
+      if (auth) loadOrders();
+    });
+  }, [loadOrders]);
+
+  const switchTab = (tab: 'products' | 'orders') => {
+    setActiveTab(tab);
+    if (tab === 'products') loadProducts();
+    else loadOrders();
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
+    setLoginError('');
+    const result = await loginAdmin(password);
+    if (result.success) {
       setIsAuthenticated(true);
+      setPassword('');
+      loadOrders();
     } else {
-      alert('Contraseña incorrecta');
+      setLoginError(result.error);
     }
+  };
+
+  const handleLogout = async () => {
+    await logoutAdmin();
+    setIsAuthenticated(false);
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-
     const newFiles = Array.from(files);
-    const newUrls = newFiles.map(file => URL.createObjectURL(file));
-
-    setNewProduct(prev => ({
+    const newUrls = newFiles.map((file) => URL.createObjectURL(file));
+    setNewProduct((prev) => ({
       ...prev,
       imageFiles: [...prev.imageFiles, ...newFiles],
-      imageUrls: [...prev.imageUrls, ...newUrls]
+      imageUrls: [...prev.imageUrls, ...newUrls],
     }));
   };
 
   const removeImage = (index: number) => {
-    setNewProduct(prev => ({
-      ...prev,
-      imageFiles: prev.imageFiles.filter((_, i) => i !== index),
-      imageUrls: prev.imageUrls.filter((_, i) => i !== index)
-    }));
+    setNewProduct((prev) => {
+      const url = prev.imageUrls[index];
+      const isBlob = url.startsWith('blob:');
+      const blobIndex = isBlob
+        ? prev.imageUrls.slice(0, index).filter((u) => u.startsWith('blob:')).length
+        : -1;
+
+      return {
+        ...prev,
+        imageUrls: prev.imageUrls.filter((_, i) => i !== index),
+        imageFiles:
+          isBlob && blobIndex >= 0
+            ? prev.imageFiles.filter((_, i) => i !== blobIndex)
+            : prev.imageFiles,
+      };
+    });
+  };
+
+  const openNewProductForm = () => {
+    handleCancelEdit();
+    setShowForm(true);
   };
 
   const handleAddProduct = async (e: React.FormEvent) => {
@@ -116,91 +148,125 @@ export default function AdminPage() {
       const uploadedUrls: string[] = [];
 
       for (const file of newProduct.imageFiles) {
-        const url = await uploadImage(file);
-        if (url) {
-          uploadedUrls.push(url);
+        const formData = new FormData();
+        formData.append('file', file);
+        const result = await uploadProductImage(formData);
+        if (result.success) {
+          uploadedUrls.push(result.url);
         }
       }
 
-      const images = uploadedUrls.length > 0 
-        ? uploadedUrls 
-        : ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800'];
+      const existingUrls = newProduct.imageUrls.filter(
+        (url) => !url.startsWith('blob:')
+      );
+      const images =
+        uploadedUrls.length > 0
+          ? [...existingUrls, ...uploadedUrls]
+          : existingUrls.length > 0
+            ? existingUrls
+            : ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800'];
 
-      const characteristics = newProduct.characteristics
-        ? JSON.parse(newProduct.characteristics)
-        : {};
+      const characteristics: Record<string, string> = {};
+      if (newProduct.charMaterial) characteristics['Material'] = newProduct.charMaterial;
+      if (newProduct.charColor) characteristics['Color'] = newProduct.charColor;
+      if (newProduct.charDimensions) characteristics['Dimensiones'] = newProduct.charDimensions;
+      if (newProduct.charWeight) characteristics['Peso'] = newProduct.charWeight;
+      if (newProduct.charOther) characteristics['Otros'] = newProduct.charOther;
 
-      const { error } = await supabase.from('products').insert({
-        name: newProduct.name,
-        description: newProduct.description,
-        price: parseFloat(newProduct.price),
-        category: newProduct.category,
-        image_url: images[0],
-        image_urls: images,
-        characteristics,
-        available: true
-      });
+      const result = await saveProduct(
+        {
+          name: newProduct.name,
+          description: newProduct.description,
+          price: parseFloat(newProduct.price),
+          category: newProduct.category,
+          stock: parseInt(newProduct.stock) || 1,
+          image_url: images[0],
+          image_urls: images,
+          characteristics,
+        },
+        isEditing && editingProductId ? editingProductId : undefined
+      );
 
-      if (error) throw error;
+      if (!result.success) {
+        alert(result.error);
+        return;
+      }
 
-      console.log('=== NUEVO PRODUCTO AÑADIDO ===');
-      console.log('Nombre:', newProduct.name);
-      console.log('Precio:', newProduct.price, '€');
-      console.log('Categoría:', newProduct.category);
-      console.log('Imágenes:', images.length);
-      console.log('================================');
-
-      setShowForm(false);
-      setNewProduct({
-        name: '',
-        description: '',
-        price: '',
-        category: 'muebles',
-        imageFiles: [],
-        imageUrls: [],
-        characteristics: ''
-      });
-
+      const wasEditing = isEditing;
+      handleCancelEdit();
       loadProducts();
-      alert('Producto añadido correctamente');
+      alert(wasEditing ? 'Producto actualizado correctamente' : 'Producto añadido correctamente');
     } catch (error) {
-      console.error('Error adding product:', error);
-      alert('Error al añadir producto');
+      console.error('Error saving product:', error);
+      alert('Error al guardar producto');
     } finally {
       setIsUploading(false);
     }
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
-      try {
-        const { error } = await supabase
-          .from('products')
-          .delete()
-          .eq('id', productId);
+    if (!confirm('¿Estás seguro de que quieres eliminar este producto?')) return;
+    const result = await deleteProduct(productId);
+    if (result.success) {
+      loadProducts();
+    } else {
+      alert(result.error);
+    }
+  };
 
-        if (error) throw error;
-        loadProducts();
-      } catch (error) {
-        console.error('Error deleting product:', error);
-        alert('Error al eliminar producto');
-      }
+  const handleEditProduct = (product: Product) => {
+    const chars = product.characteristics || {};
+    setNewProduct({
+      name: product.name,
+      description: product.description || '',
+      price: product.price.toString(),
+      category: product.category,
+      stock: (product.stock || 1).toString(),
+      imageFiles: [],
+      imageUrls: product.image_urls || [product.image_url],
+      charMaterial: chars['Material'] || '',
+      charColor: chars['Color'] || '',
+      charDimensions: chars['Dimensiones'] || '',
+      charWeight: chars['Peso'] || '',
+      charOther: chars['Otros'] || '',
+    });
+    setEditingProductId(product.id);
+    setIsEditing(true);
+    setShowForm(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditingProductId(null);
+    setShowForm(false);
+    setNewProduct(EMPTY_PRODUCT);
+  };
+
+  const handleUpdateStock = async (productId: string, stockValue: string) => {
+    const stock = parseInt(stockValue, 10);
+    if (Number.isNaN(stock) || stock < 0) {
+      alert('Introduce un stock válido (0 o más)');
+      return;
+    }
+
+    const result = await updateProductStock(productId, stock);
+    if (result.success) {
+      loadProducts();
+    } else {
+      alert(result.error);
     }
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status })
-        .eq('id', orderId);
-
-      if (error) throw error;
+    const result = await updateOrderStatus(orderId, status);
+    if (result.success) {
       loadOrders();
-    } catch (error) {
-      console.error('Error updating order:', error);
     }
   };
+
+  if (isAuthenticated === null) {
+    return <div className={styles.loading}>Cargando...</div>;
+  }
 
   if (!isAuthenticated) {
     return (
@@ -215,6 +281,7 @@ export default function AdminPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            {loginError && <p className={styles.loginError}>{loginError}</p>}
             <button type="submit" className="btn btn-primary">
               Entrar
             </button>
@@ -228,30 +295,32 @@ export default function AdminPage() {
     <div className={styles.admin}>
       <div className={styles.header}>
         <h1>Panel de Administración</h1>
-        <button 
-          onClick={() => router.push('/')}
-          className="btn btn-outline"
-        >
-          Ver tienda
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button onClick={() => router.push('/')} className="btn btn-outline">
+            Ver tienda
+          </button>
+          <button onClick={handleLogout} className="btn btn-outline">
+            Cerrar sesión
+          </button>
+        </div>
       </div>
 
       <div className={styles.tabs}>
         <button
           className={`${styles.tab} ${activeTab === 'orders' ? styles.active : ''}`}
-          onClick={() => setActiveTab('orders')}
+          onClick={() => switchTab('orders')}
         >
           <ShoppingBag size={20} />
           Pedidos
-          {orders.filter(o => o.status === 'pending').length > 0 && (
+          {orders.filter((o) => o.status === 'pending').length > 0 && (
             <span className={styles.badge}>
-              {orders.filter(o => o.status === 'pending').length}
+              {orders.filter((o) => o.status === 'pending').length}
             </span>
           )}
         </button>
         <button
           className={`${styles.tab} ${activeTab === 'products' ? styles.active : ''}`}
-          onClick={() => setActiveTab('products')}
+          onClick={() => switchTab('products')}
         >
           <Package size={20} />
           Productos
@@ -262,10 +331,7 @@ export default function AdminPage() {
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
             <h2>Gestión de Productos</h2>
-            <button 
-              onClick={() => setShowForm(!showForm)}
-              className="btn btn-primary"
-            >
+            <button onClick={openNewProductForm} className="btn btn-primary">
               <Plus size={18} />
               Añadir Producto
             </button>
@@ -273,33 +339,55 @@ export default function AdminPage() {
 
           {showForm && (
             <form onSubmit={handleAddProduct} className={styles.form}>
+              <h3 className={styles.formTitle}>
+                {isEditing ? 'Editar producto' : 'Nuevo producto'}
+              </h3>
               <div className={styles.formGrid}>
-                <input
-                  type="text"
-                  placeholder="Nombre del producto *"
-                  value={newProduct.name}
-                  onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-                  required
-                />
-                <select
-                  value={newProduct.category}
-                  onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
-                >
-                  <option value="muebles">Muebles</option>
-                  <option value="decoracion">Decoración</option>
-                  <option value="iluminacion">Iluminación</option>
-                  <option value="textil">Textil</option>
-                  <option value="cocina">Cocina</option>
-                  <option value="electronica">Electrónica</option>
-                </select>
-                <input
-                  type="number"
-                  placeholder="Precio (€) *"
-                  value={newProduct.price}
-                  onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
-                  step="0.01"
-                  required
-                />
+                <label className={styles.field}>
+                  <span>Nombre *</span>
+                  <input
+                    type="text"
+                    placeholder="Nombre del producto"
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                    required
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Categoría</span>
+                  <select
+                    value={newProduct.category}
+                    onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
+                  >
+                    {PRODUCT_CATEGORIES.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={styles.field}>
+                  <span>Precio (€) *</span>
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    value={newProduct.price}
+                    onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                    step="0.01"
+                    required
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>Stock disponible *</span>
+                  <input
+                    type="number"
+                    placeholder="Unidades en stock"
+                    value={newProduct.stock}
+                    onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
+                    min="0"
+                    required
+                  />
+                </label>
               </div>
 
               <div className={styles.imageUploadSection}>
@@ -326,7 +414,7 @@ export default function AdminPage() {
                   <div className={styles.imagePreviewGrid}>
                     {newProduct.imageUrls.map((url, index) => (
                       <div key={index} className={styles.imagePreview}>
-                        <img src={url} alt={`Preview ${index + 1}`} />
+                        <ProductImage src={url} alt={`Preview ${index + 1}`} width={100} height={100} />
                         <button
                           type="button"
                           onClick={() => removeImage(index)}
@@ -343,21 +431,54 @@ export default function AdminPage() {
               <textarea
                 placeholder="Descripción"
                 value={newProduct.description}
-                onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
                 rows={3}
               />
-              <textarea
-                placeholder='Características (JSON formato: {"Material": "Madera", "Color": "Negro"})'
-                value={newProduct.characteristics}
-                onChange={(e) => setNewProduct({...newProduct, characteristics: e.target.value})}
-                rows={2}
-              />
+
+              <div className={styles.characteristicsGrid}>
+                <input
+                  type="text"
+                  placeholder="Material (ej: Madera, Metal, Tela)"
+                  value={newProduct.charMaterial}
+                  onChange={(e) => setNewProduct({ ...newProduct, charMaterial: e.target.value })}
+                />
+                <input
+                  type="text"
+                  placeholder="Color (ej: Negro, Blanco, Rojo)"
+                  value={newProduct.charColor}
+                  onChange={(e) => setNewProduct({ ...newProduct, charColor: e.target.value })}
+                />
+                <input
+                  type="text"
+                  placeholder="Dimensiones (ej: 200x100x80cm)"
+                  value={newProduct.charDimensions}
+                  onChange={(e) => setNewProduct({ ...newProduct, charDimensions: e.target.value })}
+                />
+                <input
+                  type="text"
+                  placeholder="Peso (ej: 25kg)"
+                  value={newProduct.charWeight}
+                  onChange={(e) => setNewProduct({ ...newProduct, charWeight: e.target.value })}
+                />
+                <input
+                  type="text"
+                  placeholder="Otros datos adicionales"
+                  value={newProduct.charOther}
+                  onChange={(e) => setNewProduct({ ...newProduct, charOther: e.target.value })}
+                  className={styles.fullWidth}
+                />
+              </div>
+
               <div className={styles.formActions}>
-                <button type="button" onClick={() => setShowForm(false)} className="btn btn-outline">
+                <button type="button" onClick={handleCancelEdit} className="btn btn-outline">
                   Cancelar
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={isUploading}>
-                  {isUploading ? 'Subiendo imágenes...' : 'Guardar Producto'}
+                  {isUploading
+                    ? 'Subiendo imágenes...'
+                    : isEditing
+                      ? 'Actualizar Producto'
+                      : 'Guardar Producto'}
                 </button>
               </div>
             </form>
@@ -373,24 +494,58 @@ export default function AdminPage() {
                 <span>Producto</span>
                 <span>Categoría</span>
                 <span>Precio</span>
-                <span>Imágenes</span>
+                <span>Stock</span>
                 <span>Acciones</span>
               </div>
-              {products.map(product => (
+              {products.map((product) => (
                 <div key={product.id} className={styles.tableRow}>
                   <div className={styles.productCell}>
-                    <img src={product.image_url} alt={product.name} />
+                    <ProductImage
+                      src={product.image_url}
+                      alt={product.name}
+                      width={48}
+                      height={48}
+                    />
                     <span>{product.name}</span>
                   </div>
                   <span>{product.category}</span>
                   <span>{product.price.toFixed(2)} €</span>
-                  <span>{(product.image_urls || [product.image_url]).length}</span>
-                  <button 
-                    onClick={() => handleDeleteProduct(product.id)}
-                    className={styles.deleteBtn}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <div className={styles.stockCell}>
+                    <input
+                      type="number"
+                      className={styles.stockInput}
+                      defaultValue={product.stock ?? 0}
+                      min="0"
+                      onBlur={(e) => {
+                        const value = e.target.value;
+                        if (value !== String(product.stock ?? 0)) {
+                          handleUpdateStock(product.id, value);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur();
+                        }
+                      }}
+                      aria-label={`Stock de ${product.name}`}
+                    />
+                  </div>
+                  <div className={styles.actionsCell}>
+                    <button
+                      onClick={() => handleEditProduct(product)}
+                      className={styles.editBtn}
+                      title="Editar"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteProduct(product.id)}
+                      className={styles.deleteBtn}
+                      title="Eliminar"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -401,14 +556,14 @@ export default function AdminPage() {
       {activeTab === 'orders' && (
         <div className={styles.section}>
           <h2>Pedidos Recientes</h2>
-          
+
           {loading ? (
             <div className={styles.loading}>Cargando...</div>
           ) : orders.length === 0 ? (
             <div className={styles.empty}>No hay pedidos todavía</div>
           ) : (
             <div className={styles.ordersList}>
-              {orders.map(order => (
+              {orders.map((order) => (
                 <div key={order.id} className={styles.orderCard}>
                   <div className={styles.orderHeader}>
                     <div>
@@ -419,7 +574,7 @@ export default function AdminPage() {
                           month: 'long',
                           year: 'numeric',
                           hour: '2-digit',
-                          minute: '2-digit'
+                          minute: '2-digit',
                         })}
                       </span>
                     </div>
@@ -440,7 +595,9 @@ export default function AdminPage() {
                   <div className={styles.orderItems}>
                     {order.items.map((item, idx) => (
                       <div key={idx} className={styles.orderItem}>
-                        <span>{item.name} x{item.quantity}</span>
+                        <span>
+                          {item.name} x{item.quantity}
+                        </span>
                         <span>{(item.price * item.quantity).toFixed(2)} €</span>
                       </div>
                     ))}
@@ -465,7 +622,7 @@ export default function AdminPage() {
 
                   <div className={styles.orderActions}>
                     {order.status === 'pending' && (
-                      <button 
+                      <button
                         onClick={() => handleUpdateOrderStatus(order.id, 'confirmed')}
                         className={styles.actionBtn}
                       >
@@ -473,7 +630,7 @@ export default function AdminPage() {
                       </button>
                     )}
                     {order.status === 'confirmed' && (
-                      <button 
+                      <button
                         onClick={() => handleUpdateOrderStatus(order.id, 'shipped')}
                         className={styles.actionBtn}
                       >
@@ -481,7 +638,7 @@ export default function AdminPage() {
                       </button>
                     )}
                     {order.status === 'shipped' && (
-                      <button 
+                      <button
                         onClick={() => handleUpdateOrderStatus(order.id, 'delivered')}
                         className={styles.actionBtn}
                       >

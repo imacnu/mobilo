@@ -33,8 +33,8 @@ export async function checkout(
     const supabase = createServiceClient();
 
     const { data, error } = await supabase.rpc('create_order_with_stock', {
-      p_customer_name: customerName.trim(),
       p_customer_email: customerEmail.trim(),
+      p_customer_name: customerName.trim(),
       p_customer_phone: customerPhone.trim() || null,
       p_items: items,
     });

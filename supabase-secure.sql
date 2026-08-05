@@ -44,8 +44,8 @@ DROP POLICY IF EXISTS "Anyone can update images" ON storage.objects;
 -- =============================================
 
 CREATE OR REPLACE FUNCTION create_order_with_stock(
-  p_customer_name TEXT,
   p_customer_email TEXT,
+  p_customer_name TEXT,
   p_customer_phone TEXT,
   p_items JSONB
 )

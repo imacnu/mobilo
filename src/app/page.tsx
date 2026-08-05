@@ -18,8 +18,8 @@ export default async function Home() {
             Maria Amor 11B
           </h1>
           <p>
-            Amplia selección de muebles, electrónica y decoración a la venta, si
-            compras más de 10 productos, recibirás un 10% de descuento.
+            Selección de muebles, electrónica y decoración a la venta, si compras
+            más de 10 productos, recibirás un 10% de descuento.
           </p>
         </div>
         <div className={styles.heroImage}>

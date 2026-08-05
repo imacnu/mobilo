@@ -18,7 +18,7 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: 'Muebles y Decoración Maria Amor 11B',
-  description: 'Amplia selección de muebles, electrónica y decoración a la venta',
+  description: 'Selección de muebles, electrónica y decoración a la venta',
 };
 
 export default function RootLayout({

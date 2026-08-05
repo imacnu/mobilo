@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Package, ShoppingBag, Plus, Trash2, ImagePlus, Pencil } from 'lucide-react';
+import { Package, ShoppingBag, Plus, Trash2, ImagePlus, Pencil, Lock, ArrowLeft } from 'lucide-react';
 import { loginAdmin, logoutAdmin, checkAdminAuth } from '@/app/actions/auth';
 import {
   getAdminProducts,
@@ -12,6 +13,7 @@ import {
   updateOrderStatus,
   updateProductStock,
   uploadProductImage,
+  deleteOrder,
 } from '@/app/actions/admin';
 import { PRODUCT_CATEGORIES } from '@/lib/categories';
 import { refreshCatalog } from '@/lib/catalog-events';
@@ -39,6 +41,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [activeTab, setActiveTab] = useState<'products' | 'orders'>('orders');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -90,13 +93,18 @@ export default function AdminPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
-    const result = await loginAdmin(password);
-    if (result.success) {
-      setIsAuthenticated(true);
-      setPassword('');
-      loadOrders();
-    } else {
-      setLoginError(result.error);
+    setIsLoggingIn(true);
+    try {
+      const result = await loginAdmin(password);
+      if (result.success) {
+        setIsAuthenticated(true);
+        setPassword('');
+        loadOrders();
+      } else {
+        setLoginError(result.error);
+      }
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -268,6 +276,16 @@ export default function AdminPage() {
     }
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!confirm('¿Eliminar este pedido? Esta acción no se puede deshacer.')) return;
+    const result = await deleteOrder(orderId);
+    if (result.success) {
+      loadOrders();
+    } else {
+      alert(result.error);
+    }
+  };
+
   if (isAuthenticated === null) {
     return <div className={styles.loading}>Cargando...</div>;
   }
@@ -275,19 +293,39 @@ export default function AdminPage() {
   if (!isAuthenticated) {
     return (
       <div className={styles.login}>
-        <div className={styles.loginBox}>
-          <h1>Admin Malco</h1>
-          <p>Ingresa la contraseña para acceder</p>
-          <form onSubmit={handleLogin}>
-            <input
-              type="password"
-              placeholder="Contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+        <div className={styles.loginCard}>
+          <Link href="/" className={styles.loginBack}>
+            <ArrowLeft size={16} />
+            Volver a la tienda
+          </Link>
+
+          <div className={styles.loginBrand}>
+            <div className={styles.loginIcon}>
+              <Lock size={28} />
+            </div>
+            <h1>Maria Amor 11B</h1>
+            <p>Panel de administración</p>
+          </div>
+
+          <form onSubmit={handleLogin} className={styles.loginForm}>
+            <label className={styles.loginField}>
+              <span>Contraseña</span>
+              <input
+                type="password"
+                placeholder="Introduce tu contraseña"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </label>
             {loginError && <p className={styles.loginError}>{loginError}</p>}
-            <button type="submit" className="btn btn-primary">
-              Entrar
+            <button
+              type="submit"
+              className={`btn btn-primary ${styles.loginSubmit}`}
+              disabled={isLoggingIn || !password.trim()}
+            >
+              {isLoggingIn ? 'Accediendo...' : 'Entrar'}
             </button>
           </form>
         </div>
@@ -652,6 +690,14 @@ export default function AdminPage() {
                     {order.status === 'delivered' && (
                       <span className={styles.completedLabel}>✓ Completado</span>
                     )}
+                    <button
+                      onClick={() => handleDeleteOrder(order.id)}
+                      className={styles.deleteOrderBtn}
+                      title="Eliminar pedido"
+                    >
+                      <Trash2 size={16} />
+                      Eliminar
+                    </button>
                   </div>
                 </div>
               ))}

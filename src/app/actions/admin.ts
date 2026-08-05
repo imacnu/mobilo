@@ -94,6 +94,18 @@ export async function updateOrderStatus(
   return { success: true };
 }
 
+export async function deleteOrder(
+  orderId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+  await requireAdmin();
+
+  const supabase = createServiceClient();
+  const { error } = await supabase.from('orders').delete().eq('id', orderId);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
 export async function updateProductStock(
   productId: string,
   stock: number

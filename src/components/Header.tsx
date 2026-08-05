@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { ShoppingCart, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { useCart } from './CartProvider';
@@ -8,8 +9,13 @@ import CartSidebar from './CartSidebar';
 import styles from './Header.module.css';
 
 export default function Header() {
+  const pathname = usePathname();
   const { totalItems, setIsCartOpen } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
 
   return (
     <>

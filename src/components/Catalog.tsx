@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { CATEGORIES } from '@/lib/categories';
+import { CATALOG_REFRESH_EVENT } from '@/lib/catalog-events';
 import type { Product } from '@/lib/types';
 import ProductCard from '@/components/ProductCard';
 import styles from '@/app/page.module.css';
@@ -11,14 +12,39 @@ type CatalogProps = {
   initialProducts: Product[];
 };
 
+async function fetchCatalogProducts(
+  category: string,
+  search: string
+): Promise<Product[]> {
+  let query = supabase
+    .from('products')
+    .select('*')
+    .eq('available', true)
+    .gt('stock', 0)
+    .order('created_at', { ascending: false });
+
+  if (category !== 'all') {
+    query = query.eq('category', category);
+  }
+
+  if (search) {
+    query = query.ilike('name', `%${search}%`);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('Error fetching products:', error);
+    return [];
+  }
+  return data || [];
+}
+
 export default function Catalog({ initialProducts }: CatalogProps) {
   const [category, setCategory] = useState('all');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(false);
-  const [remoteProducts, setRemoteProducts] = useState<Product[]>(initialProducts);
-  const isDefaultView = category === 'all' && !debouncedSearch;
-  const products = isDefaultView ? initialProducts : remoteProducts;
+  const [products, setProducts] = useState<Product[]>(initialProducts);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -26,44 +52,32 @@ export default function Catalog({ initialProducts }: CatalogProps) {
   }, [search]);
 
   useEffect(() => {
-    if (isDefaultView) return;
-
     let cancelled = false;
 
-    async function fetchProducts() {
+    async function run() {
       setLoading(true);
       try {
-        let query = supabase
-          .from('products')
-          .select('*')
-          .eq('available', true)
-          .gt('stock', 0)
-          .order('created_at', { ascending: false });
-
-        if (category !== 'all') {
-          query = query.eq('category', category);
-        }
-
-        if (debouncedSearch) {
-          query = query.ilike('name', `%${debouncedSearch}%`);
-        }
-
-        const { data, error } = await query;
-        if (!cancelled && !error) {
-          setRemoteProducts(data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching products:', error);
+        const data = await fetchCatalogProducts(category, debouncedSearch);
+        if (!cancelled) setProducts(data);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
 
-    fetchProducts();
+  run();
     return () => {
       cancelled = true;
     };
-  }, [category, debouncedSearch, isDefaultView]);
+  }, [category, debouncedSearch]);
+
+  useEffect(() => {
+    const handleRefresh = async () => {
+      const data = await fetchCatalogProducts(category, debouncedSearch);
+      setProducts(data);
+    };
+    window.addEventListener(CATALOG_REFRESH_EVENT, handleRefresh);
+    return () => window.removeEventListener(CATALOG_REFRESH_EVENT, handleRefresh);
+  }, [category, debouncedSearch]);
 
   return (
     <section className={styles.catalog} id="categories">

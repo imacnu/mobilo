@@ -3,6 +3,8 @@ import Catalog from '@/components/Catalog';
 import { getInitialProducts } from '@/lib/products';
 import styles from './page.module.css';
 
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   const initialProducts = await getInitialProducts();
 

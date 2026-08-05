@@ -64,20 +64,36 @@ function buildOrderHtml(order: Order, title: string, intro: string) {
   `;
 }
 
+type ResendError = { message: string; name?: string };
+
+async function sendOne(
+  resend: Resend,
+  payload: { from: string; to: string; subject: string; html: string }
+) {
+  const { data, error } = await resend.emails.send(payload);
+  if (error) {
+    const err = error as ResendError;
+    throw new Error(err.message || 'Resend send failed');
+  }
+  if (!data?.id) {
+    throw new Error('Resend no devolvió id de email');
+  }
+  return data;
+}
+
 export async function sendOrderEmails(order: Order): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) {
-    console.warn('RESEND_API_KEY not set — skipping order emails');
-    return;
+    throw new Error('RESEND_API_KEY no está configurada en el servidor');
   }
 
   const resend = new Resend(apiKey);
-  const from = process.env.EMAIL_FROM || 'Maria Amor 11B <onboarding@resend.dev>';
-  const shopEmail = process.env.SHOP_EMAIL || 'contacto@malco.es';
+  const from = process.env.EMAIL_FROM?.trim() || 'Maria Amor 11B <onboarding@resend.dev>';
+  const shopEmail = process.env.SHOP_EMAIL?.trim() || 'contacto@malco.es';
 
   const customerEmail = order.customer_email?.trim();
   if (!customerEmail) {
-    throw new Error('Order.customer_email is empty; cannot send customer email');
+    throw new Error('El pedido no tiene email de cliente');
   }
 
   const customerHtml = buildOrderHtml(
@@ -92,32 +108,33 @@ export async function sendOrderEmails(order: Order): Promise<void> {
     `Pedido de ${order.customer_name} (${order.customer_email})${order.customer_phone ? ` · Tel: ${order.customer_phone}` : ''}.`
   );
 
-  const results = await Promise.allSettled([
-    resend.emails.send({
+  const errors: string[] = [];
+
+  try {
+    await sendOne(resend, {
       from,
       to: customerEmail,
       subject: `Confirmación de pedido #${order.id.slice(0, 8)} — ${SHOP_NAME}`,
       html: customerHtml,
-    }),
-    resend.emails.send({
+    });
+  } catch (err) {
+    errors.push(
+      `cliente: ${err instanceof Error ? err.message : 'error desconocido'}`
+    );
+  }
+
+  try {
+    await sendOne(resend, {
       from,
       to: shopEmail,
       subject: `Nuevo pedido #${order.id.slice(0, 8)} — ${order.customer_name}`,
       html: shopHtml,
-    }),
-  ]);
+    });
+  } catch (err) {
+    errors.push(`tienda: ${err instanceof Error ? err.message : 'error desconocido'}`);
+  }
 
-  const rejected = results.find(
-    (r): r is PromiseRejectedResult => r.status === 'rejected'
-  );
-  if (rejected) {
-    const reason = rejected.reason as unknown;
-    const message =
-      reason instanceof Error
-        ? reason.message
-        : typeof reason === 'object' && reason !== null && 'message' in reason
-          ? String((reason as { message?: unknown }).message ?? 'Unknown error')
-          : 'Unknown error sending emails';
-    throw new Error(`Resend email send failed: ${message}`);
+  if (errors.length > 0) {
+    throw new Error(errors.join(' | '));
   }
 }

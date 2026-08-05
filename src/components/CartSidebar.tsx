@@ -4,10 +4,13 @@ import { X, Plus, Minus, Trash2, ShoppingBag } from 'lucide-react';
 import { useCart } from './CartProvider';
 import ProductImage from '@/components/ProductImage';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { checkout } from '@/app/actions/checkout';
+import { refreshCatalog } from '@/lib/catalog-events';
 import styles from './CartSidebar.module.css';
 
 export default function CartSidebar() {
+  const router = useRouter();
   const {
     items,
     removeItem,
@@ -52,6 +55,8 @@ export default function CartSidebar() {
       setOrderSuccess(true);
       setEmailWarning(result.emailError);
       clearCart();
+      refreshCatalog();
+      router.refresh();
     } else {
       setCheckoutError(result.error);
     }
@@ -88,7 +93,7 @@ export default function CartSidebar() {
             <h3>¡Pedido realizado!</h3>
             {emailWarning ? (
               <p>
-                Gracias por tu compra. El pedido se ha creado, pero no se pudo enviar el email de confirmación.
+                Gracias por tu compra. El pedido se ha creado, pero no se pudo enviar el email: {emailWarning}
               </p>
             ) : (
               <p>Gracias por tu compra. Te hemos enviado un email de confirmación.</p>

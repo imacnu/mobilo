@@ -1,47 +1,5 @@
--- =============================================
--- SEGURIDAD: RLS restrictivo + checkout atómico
--- Ejecutar en Supabase SQL Editor
--- =============================================
-
--- Índices para rendimiento
-CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
-CREATE INDEX IF NOT EXISTS idx_products_available ON products(available) WHERE available = true;
-CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
-
--- Constraint de status en pedidos
-ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
-ALTER TABLE orders ADD CONSTRAINT orders_status_check
-  CHECK (status IN ('pending', 'confirmed', 'shipped', 'delivered'));
-
--- =============================================
--- POLÍTICAS RLS RESTRICTIVAS
--- =============================================
-
--- Productos: lectura pública solo disponibles con stock
-DROP POLICY IF EXISTS "Public read products" ON products;
-CREATE POLICY "Public read products" ON products
-  FOR SELECT USING (available = true AND stock > 0);
-
-DROP POLICY IF EXISTS "Admin insert products" ON products;
-DROP POLICY IF EXISTS "Admin update products" ON products;
-DROP POLICY IF EXISTS "Admin delete products" ON products;
-
--- Pedidos: sin acceso público (solo service_role vía server)
-DROP POLICY IF EXISTS "Public insert orders" ON orders;
-DROP POLICY IF EXISTS "Admin read orders" ON orders;
-DROP POLICY IF EXISTS "Admin update orders" ON orders;
-
--- Storage: solo lectura pública
-DROP POLICY IF EXISTS "Anyone can upload images" ON storage.objects;
-DROP POLICY IF EXISTS "Anyone can insert images" ON storage.objects;
-DROP POLICY IF EXISTS "Anyone can delete images" ON storage.objects;
-DROP POLICY IF EXISTS "Anyone can update images" ON storage.objects;
-
--- =============================================
--- FUNCIÓN: crear pedido con validación de stock
--- =============================================
+-- Ejecutar en Supabase SQL Editor para actualizar la función de checkout
+-- (marca available=false cuando el stock llega a 0)
 
 CREATE OR REPLACE FUNCTION create_order_with_stock(
   p_customer_email TEXT,
@@ -101,7 +59,6 @@ BEGIN
     v_subtotal := v_subtotal + (v_product.price * v_quantity);
     v_total_items := v_total_items + v_quantity;
 
-    -- Apilamos cada item dentro de un JSON array (evita inconsistencias array/object)
     v_order_items := v_order_items || jsonb_build_array(
       jsonb_build_object(
         'product_id', v_product_id,

@@ -14,6 +14,7 @@ import {
   uploadProductImage,
 } from '@/app/actions/admin';
 import { PRODUCT_CATEGORIES } from '@/lib/categories';
+import { refreshCatalog } from '@/lib/catalog-events';
 import ProductImage from '@/components/ProductImage';
 import type { Product, Order } from '@/lib/types';
 import styles from './page.module.css';
@@ -195,6 +196,7 @@ export default function AdminPage() {
       const wasEditing = isEditing;
       handleCancelEdit();
       loadProducts();
+      refreshCatalog();
       alert(wasEditing ? 'Producto actualizado correctamente' : 'Producto añadido correctamente');
     } catch (error) {
       console.error('Error saving product:', error);
@@ -209,6 +211,7 @@ export default function AdminPage() {
     const result = await deleteProduct(productId);
     if (result.success) {
       loadProducts();
+      refreshCatalog();
     } else {
       alert(result.error);
     }
@@ -252,6 +255,7 @@ export default function AdminPage() {
     const result = await updateProductStock(productId, stock);
     if (result.success) {
       loadProducts();
+      refreshCatalog();
     } else {
       alert(result.error);
     }

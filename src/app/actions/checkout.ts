@@ -40,10 +40,8 @@ export async function checkout(
     });
 
     if (error) {
-      const message = error.message.includes('Stock insuficiente')
-        ? error.message
-        : 'Error al procesar el pedido. Inténtalo de nuevo.';
-      return { success: false, error: message };
+      // Devolvemos el mensaje real del RPC para que podamos depurar qué falla
+      return { success: false, error: error.message || 'Error al procesar el pedido' };
     }
 
     const { data: order, error: orderError } = await supabase

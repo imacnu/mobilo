@@ -101,11 +101,14 @@ BEGIN
     v_subtotal := v_subtotal + (v_product.price * v_quantity);
     v_total_items := v_total_items + v_quantity;
 
-    v_order_items := v_order_items || jsonb_build_object(
-      'product_id', v_product_id,
-      'quantity', v_quantity,
-      'price', v_product.price,
-      'name', v_product.name
+    -- Apilamos cada item dentro de un JSON array (evita inconsistencias array/object)
+    v_order_items := v_order_items || jsonb_build_array(
+      jsonb_build_object(
+        'product_id', v_product_id,
+        'quantity', v_quantity,
+        'price', v_product.price,
+        'name', v_product.name
+      )
     );
 
     UPDATE products SET stock = stock - v_quantity WHERE id = v_product_id;
